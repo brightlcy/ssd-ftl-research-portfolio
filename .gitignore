@@ -1,0 +1,27 @@
+# Local OS/editor/Python files
+.DS_Store
+._*
+.vscode/
+.idea/
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Credentials and local settings
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Personal material and archived/raw packages are maintained separately
+/02_PERSONAL_ONLY/
+/study/
+/defense/
+/career/
+/LOCAL_COPY_MANIFEST.json
+/raw-results/
+*.bundle
+*.zip
+*.tar.gz
