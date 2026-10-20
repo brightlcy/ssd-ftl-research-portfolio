@@ -1,138 +1,32 @@
-# Failure Boundary and Persistence-Aware Fallback for Imperfect Host-Guided SSD Placement
+# SSD/FTL Research Portfolio
 
-> When should an SSD stop trusting host-provided placement hints?
+Two independently reproducible research projects, connected by a common FTL implementation lineage.
 
-## Draft status
+| Project | Research question | Main observation and boundary |
+|---|---|---|
+| [Online Hot/Cold FTL](https://github.com/brightlcy/online-hotcold-ftl) | When does recent-write placement reduce greedy GC copying? | Alibaba dev4 slice: WAF −34.03%, migration −47.51%; dev740 is neutral. Four finite trace slices, Python model. |
+| [Host Hint Safe Fallback](https://github.com/brightlcy/host-hint-safe-fallback) | When should imperfect host placement hints stop being trusted? | Seed-equal false fallback 34.67% → 8.00%; harmful WAF improves with worse erase-count balance. Five synthetic final seeds. |
 
-This is a portfolio documentation draft for review and later revision.
-The current snapshot contains the README, research documents, and four figures.
-Simulator code, tests, raw results, and personal study/interview materials are
-maintained separately and are not included in this snapshot.
+Each project contains its own source, tests, configs, archived evidence, figure generator, provenance manifests and methodology. Both remain **Private**. Follow each repository's README for verified execution status and limitations.
 
-## Overview
+## How the studies connect
 
-This project studies a failure mode of Host-guided SSD data placement: a host hint can be useful when it preserves data-lifetime separation, but harmful when that separation collapses.
+Online Hot/Cold uses past write frequency to separate placement on real trace extracts. Host Hint inherits the FTL base and studies imperfect lifetime labels in a controlled synthetic environment. The Host Hint final path does not replay Alibaba or invoke HotColdFTL. Their WAF evaluation intervals differ, so magnitudes should not be compared as one experiment.
 
-Rather than proposing a new lifetime predictor, the project asks:
+The frozen shared source is intentionally preserved in both repositories. Extracting a new live core dependency would change the closed experiments' imports and provenance; a maintained shared package belongs to a separately versioned future effort.
 
-1. When does Static Host-guided placement become worse than a Device-only policy?
-2. Can that failure region be detected online using only resolved past lifetimes?
-3. Can a conservative fallback reduce worst-case WAF regret without excessive false fallback?
+## What was verified in the rebuild
 
-## Key counterexample
+- Source and original result archives are preserved byte-for-byte.
+- Independent project execution, source/result checks, smoke runs and optimized-mode plot validators are provided.
+- Host Hint production historical replay reproduced 220 policy-run rows and all final scientific output files byte-for-byte using restored original Git history and unchanged guards. This reuses known final seeds; it is not a new untouched holdout.
+- Alibaba dev4/dev49 paired replays and dev740 Baseline match. The long dev740 Hot/Cold replay is still pending; the MSR input is absent from the export. No rerun success is claimed for those cases.
+- Five new figures include neutral behavior, remaining false fallbacks, label symmetry and wear imbalance. WAF is page programs / host writes, not pages moved per GC.
 
-The initial hypothesis was that more binary hint errors would monotonically worsen performance.
+These are simulator studies. They do not establish actual SSD latency/endurance, a real NVMe FDP implementation, or independent human authorship of every code line. Contribution and AI-assistance boundaries are explicit in each project.
 
-It was false.
+## Preserved earlier material
 
-With two symmetric placement groups, a 100% SHORT/LONG inversion can preserve perfect segregation while only swapping group names. This shifted the core variable from **semantic accuracy** to **lifetime-separation association**.
+This repository keeps the original documentation, figures and partial source upload for provenance. Its earlier README is [retained verbatim](docs/legacy/README_20261020_before_rebuild.md); the pre-rebuild commit is [213e748](https://github.com/brightlcy/ssd-ftl-research-portfolio/commit/213e74847edcb292d2c8a4cb8af11c25e5379606). Old descriptions and old figures can be superseded by the two projects' current methodology and limitations.
 
-The project therefore uses label-invariant `|phi|` association between Host Hint class and online-resolved lifetime class as the observed separation signal.
-
-## Evolution
-
-```text
-Semantic error hypothesis
-        ↓ counterexample
-Lifetime-separation hypothesis
-        ↓
-v1 rolling fallback
-        ↓ false fallback under transient dips
-Persistence-aware v2
-        ↓
-Development freeze
-        ↓
-Untouched final holdout
-```
-
-## Final protocol
-
-| Item | Value |
-|---|---:|
-| Lifetime boundary | `451` host writes |
-| Association threshold | `0.2998000399` |
-| v2 block size | `512` usable resolved pairs |
-| Persistence | `2` consecutive BAD blocks |
-| Final seeds | `301–305` |
-| Writes/run | `50,000` |
-| Logical pages | `2,048` |
-
-## Final result
-
-**FINAL_SUPPORT**
-
-- Harmful conditions detected timely: **21/21**
-- Harmful conditions with lower WAF than Static: **21/21**
-- Beneficial false fallback: **v1 17/49 → v2 4/49**
-- Seed-equal beneficial false-fallback rate: **34.7% → 8.0%**
-
-## What did not improve
-
-Wear imbalance increased in the harmful final conditions even when WAF/NAND writes/migration/GC improved.
-
-This is reported as a trade-off, not hidden as a secondary detail.
-
-## Scope
-
-This repository demonstrates a **controlled synthetic FTL experiment**.
-
-It is **not**:
-- a real NVMe FDP implementation,
-- a universal threshold study,
-- a real SSD latency benchmark,
-- proof that B=512/K=2 is optimal across workloads.
-
-## Planned full research repository structure
-
-The structure below is a plan for a future code-inclusive version, not a list of
-files included in this documentation snapshot.
-
-```text
-.
-├── README.md
-├── simulator/
-│   ├── baseline_ftl.py
-│   ├── lifetime_ftl.py
-│   ├── lifetime_tracker.py
-│   ├── persistence_detector.py
-│   └── persistence_protocol.py
-├── tests/
-├── docs/
-│   ├── METHODOLOGY.md
-│   ├── DESIGN_EVOLUTION.md
-│   ├── RELATED_WORK_POSITIONING.md
-│   ├── LIMITATIONS.md
-│   └── REPRODUCIBILITY.md
-├── figures/
-└── results/
-    └── final_summary/
-```
-
-## Best way to read this repository
-
-1. `docs/DESIGN_EVOLUTION.md`
-2. `docs/METHODOLOGY.md`
-3. `figures/`
-4. `docs/LIMITATIONS.md`
-5. code/tests, when a reviewed code snapshot is added
-
-The most important result is the reasoning path, not a single percentage.
-
-## Editing this draft
-
-Edit `README.md` and `docs/` as the portfolio develops. Figures are in `figures/`.
-The GitHub file editor can be used for small text changes.
-
-For local changes, review and commit only the upload repository contents:
-
-```sh
-git status
-git diff
-git add README.md docs figures .gitignore
-git diff --cached --stat
-git commit -m "Update portfolio documentation"
-git push origin main
-```
-
-Local pushes require GitHub authentication on the computer. Keep personal study
-materials, answer keys, historical archives, and raw datasets outside this repository.
+MQSim chip-isolation configs/results remain in the separately preserved local research export and archive. A modified MQSim engine source/build was not recovered, so that work is not presented here as a fully reproducible third code project.
